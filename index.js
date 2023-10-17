@@ -1,39 +1,45 @@
 const express = require('express');
-const { ec, stark, hash, Account, Provider,  constants,  CallData } = require('starknet')
+const { Account, ec, json, stark, Provider, hash, CallData ,constants} = require('starknet')
 
 
 // initialize Express app
 const app = express();
+const port = process.env.PORT || 3001;
 
-// initialize Starknet provider 
-const provider = new Provider({ sequencer: { network: constants.NetworkName.SN_GOERLI } });
 
 // account creation endpoint
 app.post('/accounts', async (req, res) => {
 
   try {
-    const provider = new Provider({ sequencer: { network: constants.NetworkName.SN_GOERLI } });
+    // return account address
+// connect provider
+const provider = new Provider({ sequencer: { network: constants.NetworkName.SN_GOERLI } });
 
-// new Open Zeppelin account v0.5.1
+//new Argent X account v0.2.3
+const argentXproxyClassHash = "0x25ec026985a3bf9d0cc1fe17326b245dfdc3ff89b8fde106542a3ea56c5a918";
+const argentXaccountClassHash = "0x033434ad846cdd5f23eb73ff09fe6fddd568284a0fb7d1be20ee482f044dabe2";
+
 // Generate public and private key pair.
 const privateKey = stark.randomAddress();
-console.log('New OZ account:\nprivateKey=', privateKey);
 const starkKeyPub = ec.starkCurve.getStarkKey(privateKey);
-console.log('publicKey=', starkKeyPub);
 
-const OZaccountClassHash = "0x2794ce20e5f2ff0d40e632cb53845b9f4e526ebd8471983f7dbd355b721d5a";
-// Calculate future address of the account
-const OZaccountConstructorCallData = CallData.compile({ publicKey: starkKeyPub });
-const OZcontractAddress = hash.calculateContractAddressFromHash(
-    starkKeyPub,
-    OZaccountClassHash,
-    OZaccountConstructorCallData,
+console.log('AX_ACCOUNT_PRIVATE_KEY=', privateKey);
+console.log('AX_ACCOUNT_PUBLIC_KEY=', starkKeyPub);
+
+// Calculate future address of the ArgentX account
+const AXproxyConstructorCallData = CallData.compile({
+    implementation: argentXaccountClassHash,
+    selector: hash.getSelectorFromName("initialize"),
+    calldata: CallData.compile({ signer: starkKeyPub, guardian: "0" }),
+});
+const AXcontractAddress = hash.calculateContractAddressFromHash(
+  starkKeyPub,
+    argentXproxyClassHash,
+    AXproxyConstructorCallData,
     0
 );
-
-    // return account address
-
-    res.json({ address: OZcontractAddress, privakey: privateKey });
+console.log('Precalculated account address=', AXcontractAddress);
+    res.json({ address: AXcontractAddress, privakey: privateKey });
   } catch (err) {
     console.error(err);
     res.status(500).send('Error creating account');
@@ -42,6 +48,6 @@ const OZcontractAddress = hash.calculateContractAddressFromHash(
 });
 
 // start server
-app.listen(300, () => {
+app.listen(port, () => {
   console.log('API listening on port 3000');
 });
